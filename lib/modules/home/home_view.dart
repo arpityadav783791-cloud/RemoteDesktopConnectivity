@@ -66,16 +66,26 @@ class HomeView extends GetView<HomeController> {
 
             Expanded(
               child: Obx(() {
-                if (controller.connections.isEmpty) {
-                  return const Center(child: Text('No saved connections'));
+                if (controller.filteredConnections.isEmpty) {
+                  return Center(
+                    child: Text(
+                      controller.searchQuery.value.isNotEmpty
+                          ? 'No connections match your search'
+                          : 'No saved connections',
+                    ),
+                  );
                 }
 
                 return ListView.builder(
-                  itemCount: controller.filterdConnections.length,
+                  itemCount: controller.filteredConnections.length,
                   itemBuilder: (context, index) {
-                    final connection = controller.filterdConnections[index];
+                    final connection =
+                        controller.filteredConnections[index];
 
-                    return _buildConnectionCard(context, connection, index);
+                    // The connection OBJECT is passed to every action —
+                    // the filtered-list index is never used as an index
+                    // into the unfiltered list.
+                    return _buildConnectionCard(context, connection);
                   },
                 );
               }),
@@ -89,7 +99,6 @@ class HomeView extends GetView<HomeController> {
   Widget _buildConnectionCard(
     BuildContext context,
     RdpConnection connection,
-    int index,
   ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -102,7 +111,7 @@ class HomeView extends GetView<HomeController> {
                 const CircleAvatar(child: Icon(Icons.desktop_windows_outlined)),
                 const SizedBox(height: 4),
                 Obx(() {
-                  final isFavorite = controller.connections[index].favorite;
+                  final isFavorite = controller.isFavorite(connection);
 
                   return IconButton(
                     tooltip: isFavorite
@@ -110,7 +119,7 @@ class HomeView extends GetView<HomeController> {
                         : 'Add to favorites',
                     icon: Icon(isFavorite ? Icons.star : Icons.star_border),
                     onPressed: () {
-                      controller.toggleFavorite(index);
+                      controller.toggleFavorite(connection);
                     },
                   );
                 }),
@@ -147,12 +156,12 @@ class HomeView extends GetView<HomeController> {
               if (status == RdpStatus.connecting) {
                 return ElevatedButton.icon(
                   onPressed: null,
-                  icon: SizedBox(
+                  icon: const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  label: Text('Connecting...'),
+                  label: const Text('Connecting...'),
                 );
               }
 
@@ -180,14 +189,14 @@ class HomeView extends GetView<HomeController> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               onPressed: () {
-                controller.editConnection(index);
+                controller.editConnection(connection);
               },
             ),
 
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: () {
-                controller.deleteConnection(index);
+                controller.deleteConnection(connection);
               },
             ),
           ],

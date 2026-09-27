@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../data/models/rdp_connection.dart';
+import '../utils/app_log.dart';
 import '../utils/rdp_error_mapper.dart';
 
 enum RdpStatus { disconnected, connecting, connected, failed }
@@ -100,7 +101,8 @@ class RdpService {
         return argument;
       }).toList();
 
-      print('FreeRDP arguments: $safeArguments');
+      AppLog.d('RdpService',
+          'FreeRDP arguments: ${safeArguments.join(' ')}');
 
       // --------------------------------
       // Start FreeRDP
@@ -119,7 +121,8 @@ class RdpService {
       _process!.stdout.transform(const SystemEncoding().decoder).listen((
         output,
       ) {
-        print('FreeRDP: $output');
+        AppLog.d('RdpService',
+            'FreeRDP: ${AppLog.redact(output)}');
 
         _checkConnectionEstablished(output);
       });
@@ -131,7 +134,8 @@ class RdpService {
       _process!.stderr.transform(const SystemEncoding().decoder).listen((
         error,
       ) {
-        print('FreeRDP Error: $error');
+        AppLog.d('RdpService',
+            'FreeRDP Error: ${AppLog.redact(error)}');
 
         _checkConnectionEstablished(error);
 
@@ -153,7 +157,8 @@ class RdpService {
 
       final exitCode = await process.exitCode;
 
-      print('FreeRDP exited with code: $exitCode');
+      AppLog.d('RdpService',
+          'FreeRDP exited with code: $exitCode');
 
       _process = null;
 

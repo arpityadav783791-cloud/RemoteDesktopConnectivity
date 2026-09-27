@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/services/storage_service.dart';
+import '../../core/utils/connection_utils.dart';
 import '../../data/models/rdp_connection.dart';
 
 class ConnectionController extends GetxController {
-  final StorageService _storageService = StorageService();
+  ConnectionController({StorageService? storageService})
+      : _storageService = storageService ?? StorageService();
+
+  final StorageService _storageService;
 
   final nameController = TextEditingController();
   final hostController = TextEditingController();
@@ -55,45 +59,62 @@ class ConnectionController extends GetxController {
       return;
     }
 
-    final existingConnections = _storageService.getConnections();
+    final host = hostController.text.trim();
+    final username = usernameController.text.trim();
+    final domain = domainController.text.trim();
 
-    final duplicate = existingConnections.any((item) {
-      return item['host'] == hostController.text.trim() &&
-          item['username'] == usernameController.text.trim();
-    });
+    final existingConnections = await _storageService.loadConnections();
 
-    if (duplicate && !isEditing) {
+    // The record being edited is excluded by its STABLE id, so editing a
+    // connection without changing host/username is not a duplicate.
+    final duplicate = isDuplicateConnection(
+      existingConnections,
+      host: host,
+      username: username,
+      excludeId: editingConnection?.id,
+    );
+
+    if (duplicate) {
       Get.snackbar('Already Exists', 'This connection is already saved.');
       return;
     }
 
-    final connection = RdpConnection(
+    if (isEditing) {
+      // Editing preserves the connection's stable id, favorite state and
+      // every property not exposed for editing here (copyWith keeps them).
+      final updated = editingConnection!.copyWith(
+        name: nameController.text.trim(),
+        host: host,
+        username: username,
+        password: passwordController.text,
+        domain: domain.isEmpty ? null : domain,
+        fullscreen: fullscreen.value,
+        clipboard: clipboard.value,
+        audio: audio.value,
+        width: width.value,
+        height: height.value,
+      );
+
+      Get.back(result: updated);
+      return;
+    }
+
+    final connection = RdpConnection.create(
       name: nameController.text.trim(),
-      host: hostController.text.trim(),
-      username: usernameController.text.trim(),
+      host: host,
+      username: username,
       password: passwordController.text,
-      domain: domainController.text.trim().isEmpty
-          ? null
-          : domainController.text.trim(),
+      domain: domain.isEmpty ? null : domain,
       fullscreen: fullscreen.value,
       clipboard: clipboard.value,
       audio: audio.value,
       width: width.value,
       height: height.value,
     );
-    
-    if (isEditing) {
-      Get.back(result: connection);
-      return;
-    }
 
-    final connections = _storageService.getConnections();
+    existingConnections.add(connection);
 
-    connections.add(connection.toJson());
-
-    await _storageService.saveConnections(
-      connections.cast<Map<String, dynamic>>(),
-    );
+    await _storageService.saveConnectionList(existingConnections);
 
     Get.back();
   }
