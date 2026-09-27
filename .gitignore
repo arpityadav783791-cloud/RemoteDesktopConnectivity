@@ -47,5 +47,6 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Standalone RDP engine repository
-native/
+
+native/freerdp/build/
+native/freerdp/install/
