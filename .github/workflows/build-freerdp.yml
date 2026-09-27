@@ -36,6 +36,8 @@ jobs:
             libxfixes-dev \
             libxv-dev \
             libwayland-dev \
+            libxkbcommon-dev \
+            libsystemd-dev \
             libpulse-dev \
             libasound2-dev \
             libkrb5-dev \
