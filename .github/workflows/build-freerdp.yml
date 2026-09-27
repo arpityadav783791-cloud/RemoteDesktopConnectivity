@@ -1,0 +1,92 @@
+name: Build FreeRDP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-freerdp:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libssl-dev \
+            libx11-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxkbfile-dev \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxdamage-dev \
+            libxfixes-dev \
+            libxv-dev \
+            libwayland-dev \
+            libpulse-dev \
+            libasound2-dev \
+            libkrb5-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libavfilter-dev \
+            libavdevice-dev \
+            libopus-dev \
+            libfuse3-dev \
+            libicu-dev \
+            libcairo2-dev
+
+      - name: Configure FreeRDP
+        run: |
+          cmake -S native/freerdp/source \
+            -B native/freerdp/build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/native/freerdp/install" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DBUILD_TESTING=OFF \
+            -DWITH_CLIENT=OFF \
+            -DWITH_SERVER=OFF \
+            -DWITH_CLIENT_SDL=OFF \
+            -DWITH_X11=ON \
+            -DWITH_WAYLAND=ON \
+            -DWITH_OPENSSL=ON \
+            -DWITH_KRB5=ON \
+            -DWITH_FFMPEG=ON \
+            -DWITH_SWSCALE=ON \
+            -DWITH_OPUS=ON \
+            -DWITH_CUPS=OFF \
+            -DWITH_PCSC=OFF \
+            -DWITH_SMARTCARD_EMULATE=OFF \
+            -DCHANNEL_PRINTER=OFF \
+            -DCHANNEL_SERIAL=OFF \
+            -DCHANNEL_SMARTCARD=OFF \
+            -DCHANNEL_URBDRC=OFF
+
+      - name: Build FreeRDP
+        run: |
+          cmake --build native/freerdp/build --parallel 4
+
+      - name: Install FreeRDP
+        run: |
+          cmake --install native/freerdp/build
+
+      - name: Upload FreeRDP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: freerdp-linux-x64
+          path: native/freerdp/install/
