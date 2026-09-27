@@ -1,32 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
-
-import 'app/bindings/initial_binding.dart';
-import 'app/routes/app_pages.dart';
-import 'app/theme/app_theme.dart';
+import 'app/app.dart';
+import 'core/services/credential_service.dart';
+import 'core/services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await GetStorage.init();
-
-  runApp(const LinuxRdpClient());
-}
-
-class LinuxRdpClient extends StatelessWidget {
-  const LinuxRdpClient({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Linux RDP Client',
-      initialBinding: InitialBinding(),
-      initialRoute: '/',
-      getPages: AppPages.pages,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-    );
-  }
+  await StorageService.initialize();
+  await CredentialService.initialize();
+  runApp(const RemoteDesktopConnectivityApp());
 }

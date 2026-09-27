@@ -1,271 +1,158 @@
 import 'dart:async';
 import 'dart:io';
-
 import '../../data/models/rdp_connection.dart';
-import '../utils/app_log.dart';
 import '../utils/rdp_error_mapper.dart';
 
-enum RdpStatus { disconnected, connecting, connected, failed }
+enum RdpStatus { disconnected, connecting, connected, disconnecting, failed }
 
 class RdpService {
   Process? _process;
-
   RdpConnection? _activeConnection;
-
-  RdpConnection? get activeConnection => _activeConnection;
-
+  final _statusController = StreamController<RdpStatus>.broadcast();
+  RdpStatus _status = RdpStatus.disconnected;
   String? _lastError;
 
+  Stream<RdpStatus> get status => _statusController.stream;
+  RdpStatus get currentStatus => _status;
+  RdpConnection? get activeConnection => _activeConnection;
   String? get lastError => _lastError;
 
-  final StreamController<RdpStatus> _statusController =
-      StreamController<RdpStatus>.broadcast();
-
-  Stream<RdpStatus> get status => _statusController.stream;
-
-  RdpStatus _currentStatus = RdpStatus.disconnected;
-
-  RdpStatus get currentStatus => _currentStatus;
-
-  Future<void> connect(RdpConnection connection) async {
-    _lastError = null;
-
-    // Disconnect existing session.
-    if (_process != null) {
-      await disconnect();
+  Future<bool> isBackendAvailable() async {
+    if (!Platform.isLinux) return true;
+    for (final executable in ['xfreerdp3', 'xfreerdp']) {
+      try {
+        final result = await Process.run('which', [executable]);
+        if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) return true;
+      } catch (_) {}
     }
-
-    _activeConnection = connection;
-
-    _setStatus(RdpStatus.connecting);
-
-    try {
-      // --------------------------------
-      // Check RDP server reachability
-      // --------------------------------
-      final reachable = await _isRdpServerReachable(connection.host);
-
-      if (!reachable) {
-        _lastError = 'Unable to reach the RDP server on ${connection.host}.';
-
-        _setStatus(RdpStatus.failed);
-
-        _activeConnection = null;
-
-        return;
-      }
-
-      // --------------------------------
-      // Build FreeRDP arguments
-      // --------------------------------
-
-      final arguments = [
-        '/v:${connection.host}',
-        '/u:${connection.username}',
-        '/p:${connection.password}',
-        '/cert:ignore',
-      ];
-
-      // Display settings
-      if (connection.fullscreen) {
-        arguments.add('/f');
-      } else {
-        arguments.add('/w:${connection.width}');
-        arguments.add('/h:${connection.height}');
-      }
-
-      // Clipboard
-      if (connection.clipboard) {
-        arguments.add('/clipboard');
-      }
-
-      // Audio
-      if (connection.audio) {
-        arguments.add('/audio-mode:0');
-      }
-
-      // Domain
-      if (connection.domain != null && connection.domain!.trim().isNotEmpty) {
-        arguments.add('/d:${connection.domain}');
-      }
-
-      // --------------------------------
-      // Safe debug output
-      // --------------------------------
-
-      final safeArguments = arguments.map((argument) {
-        if (argument.startsWith('/p:')) {
-          return '/p:********';
-        }
-
-        return argument;
-      }).toList();
-
-      AppLog.d('RdpService',
-          'FreeRDP arguments: ${safeArguments.join(' ')}');
-
-      // --------------------------------
-      // Start FreeRDP
-      // --------------------------------
-
-      _process = await Process.start(
-        '/usr/bin/xfreerdp',
-        arguments,
-        runInShell: false,
-      );
-
-      // --------------------------------
-      // STDOUT
-      // --------------------------------
-
-      _process!.stdout.transform(const SystemEncoding().decoder).listen((
-        output,
-      ) {
-        AppLog.d('RdpService',
-            'FreeRDP: ${AppLog.redact(output)}');
-
-        _checkConnectionEstablished(output);
-      });
-
-      // --------------------------------
-      // STDERR
-      // --------------------------------
-
-      _process!.stderr.transform(const SystemEncoding().decoder).listen((
-        error,
-      ) {
-        AppLog.d('RdpService',
-            'FreeRDP Error: ${AppLog.redact(error)}');
-
-        _checkConnectionEstablished(error);
-
-        // Ignore this harmless timezone warning.
-        if (!error.contains('Unable to find a match for unix timezone')) {
-          _lastError = RdpErrorMapper.getMessage(error);
-        }
-      });
-
-      // --------------------------------
-      // Wait for FreeRDP
-      // --------------------------------
-
-      final process = _process;
-
-      if (process == null) {
-        return;
-      }
-
-      final exitCode = await process.exitCode;
-
-      AppLog.d('RdpService',
-          'FreeRDP exited with code: $exitCode');
-
-      _process = null;
-
-      // --------------------------------
-      // Handle exit
-      // --------------------------------
-
-      if (exitCode == 0 || exitCode == 12) {
-        _setStatus(RdpStatus.disconnected);
-      } else {
-        _setStatus(RdpStatus.failed);
-      }
-
-      _activeConnection = null;
-    } catch (e) {
-      _process = null;
-
-      _lastError ??= e.toString();
-
-      _setStatus(RdpStatus.failed);
-
-      _activeConnection = null;
-
-      rethrow;
-    }
+    return false;
   }
 
-  // --------------------------------
-  // Detect successful RDP connection
-  // --------------------------------
+  Future<void> connect(RdpConnection connection, {String? passwordOverride}) async {
+    await disconnect();
+    _lastError = null;
+    _activeConnection = connection;
+    _setStatus(RdpStatus.connecting);
 
-  void _checkConnectionEstablished(String output) {
-    if (_currentStatus == RdpStatus.connected) {
+    if (!Platform.isLinux) {
+      _lastError = 'Windows/native RDP adapter is not implemented in this generated lib yet.';
+      _setStatus(RdpStatus.failed);
       return;
     }
 
-    if (output.contains('Local framebuffer format') ||
-        output.contains('Remote framebuffer format')) {
-      _setStatus(RdpStatus.connected);
+    final executable = await _findLinuxExecutable();
+    if (executable == null) {
+      _lastError = 'FreeRDP was not found. Install FreeRDP and try again.';
+      _setStatus(RdpStatus.failed);
+      return;
     }
-  }
 
-  // --------------------------------
-  // Check TCP port before FreeRDP
-  // --------------------------------
+    final password = passwordOverride ?? connection.password;
+    final args = <String>[
+      '/v:${connection.host}',
+      '/u:${connection.username}',
+      if (connection.domain?.isNotEmpty == true) '/d:${connection.domain}',
+      '/p:$password',
+      '/cert:tofu',
+    ];
 
-  Future<bool> _isRdpServerReachable(String host) async {
-    String hostname = host;
-    int port = 3389;
+    // Strict isolation: no clipboard, drive, printer, microphone, USB,
+    // smart-card or other local-resource redirection arguments are added.
 
-    if (host.contains(':')) {
-      final parts = host.split(':');
-
-      hostname = parts.first;
-      port = int.tryParse(parts.last) ?? 3389;
+    if (connection.fullscreen) {
+      args.add('/f');
+    } else {
+      args.add('/w:${connection.width}');
+      args.add('/h:${connection.height}');
     }
 
     try {
-      final socket = await Socket.connect(
-        hostname,
-        port,
-        timeout: const Duration(seconds: 5),
-      );
+      final process = await Process.start(executable, args, runInShell: false);
+      _process = process;
+      process.stdout.transform(const SystemEncoding().decoder).listen(_handleOutput);
+      process.stderr.transform(const SystemEncoding().decoder).listen(_handleOutput);
 
-      await socket.close();
+      final exitCode = await process.exitCode;
+      if (identical(_process, process)) _process = null;
 
-      return true;
-    } catch (_) {
-      return false;
+      if (_status != RdpStatus.disconnecting) {
+        if (exitCode == 0 || exitCode == 12) {
+          _setStatus(RdpStatus.disconnected);
+        } else {
+          _lastError ??= 'RDP session ended with exit code $exitCode.';
+          _setStatus(RdpStatus.failed);
+        }
+      }
+      _activeConnection = null;
+    } catch (e) {
+      _lastError = RdpErrorMapper.message(e.toString());
+      _process = null;
+      _activeConnection = null;
+      _setStatus(RdpStatus.failed);
     }
   }
 
-  // --------------------------------
-  // Disconnect
-  // --------------------------------
+  Future<String?> _findLinuxExecutable() async {
+    for (final executable in ['xfreerdp3', 'xfreerdp']) {
+      try {
+        final result = await Process.run('which', [executable]);
+        if (result.exitCode == 0) {
+          final path = result.stdout.toString().trim();
+          if (path.isNotEmpty) return path;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  void _handleOutput(String output) {
+    if (output.contains('Local framebuffer format') ||
+        output.contains('Remote framebuffer format') ||
+        output.contains('Connected to')) {
+      _setStatus(RdpStatus.connected);
+    }
+    if (output.toLowerCase().contains('authentication failure') ||
+        output.toLowerCase().contains('logon failure')) {
+      _lastError = RdpErrorMapper.message(output);
+    }
+  }
 
   Future<void> disconnect() async {
     final process = _process;
-
     if (process == null) {
+      _activeConnection = null;
+      if (_status != RdpStatus.disconnected) _setStatus(RdpStatus.disconnected);
       return;
     }
 
-    _setStatus(RdpStatus.disconnected);
-
-    process.kill(ProcessSignal.sigterm);
-
-    _process = null;
-    _activeConnection = null;
+    _setStatus(RdpStatus.disconnecting);
+    try {
+      process.kill(ProcessSignal.sigterm);
+      await process.exitCode.timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          process.kill(ProcessSignal.sigkill);
+          return -1;
+        },
+      );
+    } catch (_) {
+      try {
+        process.kill(ProcessSignal.sigkill);
+      } catch (_) {}
+    } finally {
+      _process = null;
+      _activeConnection = null;
+      _setStatus(RdpStatus.disconnected);
+    }
   }
 
-  // --------------------------------
-  // Update status
-  // --------------------------------
-
-  void _setStatus(RdpStatus status) {
-    _currentStatus = status;
-    _statusController.add(status);
+  void _setStatus(RdpStatus value) {
+    _status = value;
+    if (!_statusController.isClosed) _statusController.add(value);
   }
-
-  // --------------------------------
-  // Dispose
-  // --------------------------------
 
   Future<void> dispose() async {
     await disconnect();
-
     await _statusController.close();
   }
 }

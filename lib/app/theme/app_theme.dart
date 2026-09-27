@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData light = ThemeData(
-    brightness: Brightness.light,
-    useMaterial3: true,
-  );
+  static ThemeData get light => ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.light,
+        inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+      );
 
-  static ThemeData dark = ThemeData(
-    brightness: Brightness.dark,
-    useMaterial3: true,
-  );
+  static ThemeData get dark => ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.dark,
+        inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+      );
 }

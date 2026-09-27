@@ -1,23 +1,32 @@
 name: linux_rdp_client
-description: A cross-platform Remote Desktop (RDP) client built with Flutter + GetX.
-publish_to: 'none'
-version: 0.1.0
+description: A focused, secure cross-platform Remote Desktop client.
+publish_to: "none"
+
+version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.5.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  get: ^4.6.6
-  get_storage: ^2.1.0
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  get: ^4.7.3
+
+  # Local connection metadata storage
+  get_storage: ^2.1.1
+
+  # Stable connection IDs
   uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true

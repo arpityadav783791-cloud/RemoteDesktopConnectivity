@@ -1,37 +1,22 @@
 class RdpErrorMapper {
-  static String getMessage(String error) {
-    if (error.contains('ERRCONNECT_CONNECT_FAILED')) {
-      return 'Unable to reach the RDP server.';
+  static String message(String raw) {
+    final text = raw.toLowerCase();
+    if (text.contains('authentication') ||
+        text.contains('logon failure') ||
+        text.contains('wrong password')) {
+      return 'Authentication failed. Check the username and password.';
     }
-
-    if (error.contains('ERRCONNECT_AUTHENTICATION_FAILED')) {
-      return 'Authentication failed. Check your username and password.';
+    if (text.contains('connection refused')) {
+      return 'The remote computer refused the connection.';
     }
-
-    if (error.contains('ERRCONNECT_LOGON_FAILURE')) {
-      return 'Login failed. Check your credentials.';
+    if (text.contains('could not resolve') ||
+        text.contains('name or service not known')) {
+      return 'The remote host could not be resolved.';
     }
-
-    if (error.contains('ERRCONNECT_PASSWORD_CERTAINLY_EXPIRED')) {
-      return 'Your password has expired.';
+    if (text.contains('timeout')) return 'The connection timed out.';
+    if (text.contains('certificate')) {
+      return 'The remote certificate could not be verified.';
     }
-
-    if (error.contains('ERRCONNECT_ACCOUNT_LOCKED_OUT')) {
-      return 'The account is locked.';
-    }
-
-    if (error.contains('ERRCONNECT_ACCOUNT_RESTRICTION')) {
-      return 'The account is restricted from connecting.';
-    }
-
-    if (error.contains('ERRCONNECT_CONNECT_TRANSPORT_FAILED')) {
-      return 'The network connection to the RDP server failed.';
-    }
-
-    if (error.contains('ERRCONNECT_DNS_NAME_NOT_FOUND')) {
-      return 'The hostname could not be resolved.';
-    }
-
-    return 'Unable to establish the RDP connection.';
+    return raw.trim().isEmpty ? 'Unable to establish the RDP session.' : raw.trim();
   }
 }
