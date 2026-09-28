@@ -77,46 +77,129 @@ class HomePage extends GetView<HomeController> {
       );
 
   Widget _card(RdpConnection c) => Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.computer)),
-          title: Text(c.name),
-          subtitle: Text('${c.username}@${c.host}'),
-          onTap: () => controller.connect(c),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Obx(() {
-                final s = controller.statusOf(c);
-                return Icon(
-                  s == RdpStatus.connected
-                      ? Icons.circle
-                      : s == RdpStatus.connecting
-                          ? Icons.sync
-                          : Icons.circle_outlined,
-                  size: 12,
-                );
-              }),
-              IconButton(
-                onPressed: () => controller.toggleFavorite(c),
-                icon: Icon(c.favorite ? Icons.star : Icons.star_border),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'connect') controller.connect(c);
-                  if (v == 'disconnect') controller.disconnect();
-                  if (v == 'edit') controller.editConnection(c);
-                  if (v == 'delete') controller.deleteConnection(c);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'connect', child: Text('Connect')),
-                  PopupMenuItem(value: 'disconnect', child: Text('Disconnect')),
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
-            ],
-          ),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const CircleAvatar(
+          child: Icon(Icons.computer),
         ),
-      );
+        title: Text(c.name),
+        subtitle: Obx(() {
+          final status = controller.statusOf(c);
+
+          if (status == RdpStatus.connected) {
+            return Text(
+              '${c.username}@${c.host} • Connected',
+            );
+          }
+
+          if (status == RdpStatus.connecting) {
+            return Text(
+              '${c.username}@${c.host} • Connecting...',
+            );
+          }
+
+          if (status == RdpStatus.failed) {
+            return Text(
+              '${c.username}@${c.host} • Connection failed',
+            );
+          }
+
+          return Text(
+            '${c.username}@${c.host}',
+          );
+        }),
+        onTap: () => controller.connect(c),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Obx(() {
+              final status = controller.statusOf(c);
+
+              switch (status) {
+                case RdpStatus.connected:
+                  return const Icon(
+                    Icons.circle,
+                    size: 12,
+                    color: Colors.green,
+                  );
+
+                case RdpStatus.connecting:
+                  return const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  );
+
+                case RdpStatus.failed:
+                  return const Icon(
+                    Icons.error_outline,
+                    size: 20,
+                    color: Colors.red,
+                  );
+
+                case RdpStatus.disconnecting:
+                  return const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  );
+
+                case RdpStatus.disconnected:
+                  return const Icon(
+                    Icons.circle_outlined,
+                    size: 12,
+                  );
+              }
+            }),
+            IconButton(
+              onPressed: () => controller.toggleFavorite(c),
+              icon: Icon(
+                c.favorite ? Icons.star : Icons.star_border,
+              ),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'connect') {
+                  controller.connect(c);
+                }
+
+                if (v == 'disconnect') {
+                  controller.disconnect();
+                }
+
+                if (v == 'edit') {
+                  controller.editConnection(c);
+                }
+
+                if (v == 'delete') {
+                  controller.deleteConnection(c);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'connect',
+                  child: Text('Connect'),
+                ),
+                PopupMenuItem(
+                  value: 'disconnect',
+                  child: Text('Disconnect'),
+                ),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit'),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
 }

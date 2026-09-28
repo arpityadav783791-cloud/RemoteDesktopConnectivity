@@ -9,6 +9,7 @@ class RdpBridge {
   late final _ConnectDart _connect;
   late final _DisconnectDart _disconnect;
   late final _IsConnectedDart _isConnected;
+  late final _LastErrorDart _lastError;
 
   RdpBridge() {
     _library = _loadLibrary();
@@ -22,6 +23,9 @@ class RdpBridge {
     _isConnected =
         _library.lookupFunction<_IsConnectedNative, _IsConnectedDart>(
             'rdc_is_connected');
+
+    _lastError = _library
+        .lookupFunction<_LastErrorNative, _LastErrorDart>('rdc_last_error');
   }
 
   ffi.DynamicLibrary _loadLibrary() {
@@ -72,6 +76,16 @@ class RdpBridge {
   bool get isConnected {
     return _isConnected() != 0;
   }
+
+  String get lastError {
+    final pointer = _lastError();
+
+    if (pointer == ffi.nullptr) {
+      return '';
+    }
+
+    return pointer.toDartString();
+  }
 }
 
 typedef _ConnectNative = ffi.Int32 Function(
@@ -97,3 +111,7 @@ typedef _DisconnectDart = int Function();
 typedef _IsConnectedNative = ffi.Int32 Function();
 
 typedef _IsConnectedDart = int Function();
+
+typedef _LastErrorNative = ffi.Pointer<Utf8> Function();
+
+typedef _LastErrorDart = ffi.Pointer<Utf8> Function();

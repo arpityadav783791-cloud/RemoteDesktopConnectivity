@@ -1,33 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'core/native/rdp_bridge.dart';
+import 'app/app.dart';
+import 'core/services/credential_service.dart';
+import 'core/services/storage_service.dart';
 
-void main() {
-  final bridge = RdpBridge();
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await StorageService.initialize();
+  await CredentialService.initialize();
 
   runApp(
-    MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Remote Desktop Connectivity'),
-        ),
-        body: Center(
-          child: ElevatedButton(
-            onPressed: () {
-              final connected = bridge.connect(
-                host: '127.0.0.1',
-                port: 3389,
-                username: 'YOUR_USERNAME',
-                password: 'YOUR_PASSWORD',
-              );
-
-              debugPrint('RDP connect result: $connected');
-              debugPrint('RDP connected: ${bridge.isConnected}');
-            },
-            child: const Text('Test RDP Connection'),
-          ),
-        ),
-      ),
-    ),
+    const RemoteDesktopConnectivityApp(),
   );
 }

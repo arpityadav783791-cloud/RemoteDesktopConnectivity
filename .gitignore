@@ -50,3 +50,4 @@ app.*.map.json
 
 native/freerdp/build/
 native/freerdp/install/
+native/rdp_bridge/build/
