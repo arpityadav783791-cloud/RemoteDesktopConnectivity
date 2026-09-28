@@ -26,25 +26,38 @@ class RdpFrame {
 }
 
 class RdpService {
-  RdpService({RdpBridge? bridge}) : _bridge = bridge ?? RdpBridge();
+  RdpService({
+    RdpBridge? bridge,
+  }) : _bridge = bridge ?? RdpBridge();
 
   final RdpBridge _bridge;
 
   RdpConnection? _activeConnection;
 
-  final StreamController<RdpStatus> _statusController =
+  final StreamController<RdpStatus>
+      _statusController =
       StreamController<RdpStatus>.broadcast();
 
-  RdpStatus _status = RdpStatus.disconnected;
+  RdpStatus _status =
+      RdpStatus.disconnected;
+
   String? _lastError;
 
-  Stream<RdpStatus> get status => _statusController.stream;
-  RdpStatus get currentStatus => _status;
-  RdpConnection? get activeConnection => _activeConnection;
-  String? get lastError => _lastError;
-  bool get isConnected => _bridge.isConnected;
+  Stream<RdpStatus> get status =>
+      _statusController.stream;
 
-  Future<bool> isBackendAvailable() async => true;
+  RdpStatus get currentStatus => _status;
+
+  RdpConnection? get activeConnection =>
+      _activeConnection;
+
+  String? get lastError => _lastError;
+
+  bool get isConnected =>
+      _bridge.isConnected;
+
+  Future<bool> isBackendAvailable() async =>
+      true;
 
   Future<bool> connect(
     RdpConnection connection, {
@@ -56,12 +69,16 @@ class RdpService {
     _activeConnection = connection;
     _setStatus(RdpStatus.connecting);
 
-    final password = passwordOverride ?? connection.password;
+    final password =
+        passwordOverride ?? connection.password;
 
     if (password.isEmpty) {
-      _lastError = 'Password is required.';
+      _lastError =
+          'Password is required.';
+
       _activeConnection = null;
       _setStatus(RdpStatus.failed);
+
       return false;
     }
 
@@ -72,81 +89,144 @@ class RdpService {
         username: connection.username,
         password: password,
         domain: connection.domain ?? '',
-        width: connection.fullscreen ? 1920 : connection.width,
-        height: connection.fullscreen ? 1080 : connection.height,
+        width: connection.fullscreen
+            ? 1920
+            : connection.width,
+        height: connection.fullscreen
+            ? 1080
+            : connection.height,
       );
 
       if (!started) {
-        _lastError = RdpErrorMapper.message(_bridge.lastError);
+        _lastError =
+            RdpErrorMapper.message(
+          _bridge.lastError,
+        );
+
         _activeConnection = null;
         _setStatus(RdpStatus.failed);
+
         return false;
       }
 
-      const timeout = Duration(seconds: 30);
-      final stopwatch = Stopwatch()..start();
+      const timeout =
+          Duration(seconds: 30);
 
-      while (stopwatch.elapsed < timeout) {
+      final stopwatch =
+          Stopwatch()..start();
+
+      while (stopwatch.elapsed <
+          timeout) {
         switch (_bridge.connectionState) {
           case 2:
-            _setStatus(RdpStatus.connected);
+            _setStatus(
+              RdpStatus.connected,
+            );
+
             return true;
 
           case 3:
-            _lastError = RdpErrorMapper.message(_bridge.lastError);
-            await _bridge.disconnect();
+            _lastError =
+                RdpErrorMapper.message(
+              _bridge.lastError,
+            );
+
+            _bridge.disconnect();
+
             _activeConnection = null;
-            _setStatus(RdpStatus.failed);
+            _setStatus(
+              RdpStatus.failed,
+            );
+
             return false;
 
           default:
             await Future<void>.delayed(
-              const Duration(milliseconds: 100),
+              const Duration(
+                milliseconds: 100,
+              ),
             );
         }
       }
 
-      _lastError = 'The connection timed out.';
-      await _bridge.disconnect();
+      _lastError =
+          'The connection timed out.';
+
+      _bridge.disconnect();
+
       _activeConnection = null;
-      _setStatus(RdpStatus.failed);
+
+      _setStatus(
+        RdpStatus.failed,
+      );
+
       return false;
     } catch (e) {
-      _lastError = RdpErrorMapper.message(e.toString());
+      _lastError =
+          RdpErrorMapper.message(
+        e.toString(),
+      );
+
       _activeConnection = null;
-      _setStatus(RdpStatus.failed);
+
+      _setStatus(
+        RdpStatus.failed,
+      );
+
       return false;
     }
   }
 
   Future<void> disconnect() async {
-    final hasNativeSession = _bridge.connectionState != 0;
+    final hasNativeSession =
+        _bridge.connectionState != 0;
 
-    if (!hasNativeSession && _activeConnection == null) {
-      if (_status != RdpStatus.disconnected) {
-        _setStatus(RdpStatus.disconnected);
+    if (!hasNativeSession &&
+        _activeConnection == null) {
+      if (_status !=
+          RdpStatus.disconnected) {
+        _setStatus(
+          RdpStatus.disconnected,
+        );
       }
+
       return;
     }
 
-    _setStatus(RdpStatus.disconnecting);
+    _setStatus(
+      RdpStatus.disconnecting,
+    );
 
     try {
       _bridge.disconnect();
     } catch (e) {
-      _lastError = RdpErrorMapper.message(e.toString());
+      _lastError =
+          RdpErrorMapper.message(
+        e.toString(),
+      );
     } finally {
       _activeConnection = null;
-      _setStatus(RdpStatus.disconnected);
+
+      _setStatus(
+        RdpStatus.disconnected,
+      );
     }
   }
 
   RdpFrame? readFrame() {
-    final info = _bridge.getFrameInfo();
-    if (info == null) return null;
+    final info =
+        _bridge.getFrameInfo();
 
-    final pixels = _bridge.copyFrame(info);
-    if (pixels == null) return null;
+    if (info == null) {
+      return null;
+    }
+
+    final pixels =
+        _bridge.copyFrame(info);
+
+    if (pixels == null) {
+      return null;
+    }
 
     return RdpFrame(
       width: info.width,
@@ -158,25 +238,42 @@ class RdpService {
   bool sendKey({
     required int flags,
     required int code,
-  }) =>
-      _bridge.sendKey(flags: flags, code: code);
+  }) {
+    return _bridge.sendKey(
+      flags: flags,
+      code: code,
+    );
+  }
 
   bool sendUnicode({
     required int flags,
     required int code,
-  }) =>
-      _bridge.sendUnicode(flags: flags, code: code);
+  }) {
+    return _bridge.sendUnicode(
+      flags: flags,
+      code: code,
+    );
+  }
 
   bool sendMouse({
     required int flags,
     required int x,
     required int y,
-  }) =>
-      _bridge.sendMouse(flags: flags, x: x, y: y);
+  }) {
+    return _bridge.sendMouse(
+      flags: flags,
+      x: x,
+      y: y,
+    );
+  }
 
-  void _setStatus(RdpStatus value) {
+  void _setStatus(
+    RdpStatus value,
+  ) {
     _status = value;
-    if (!_statusController.isClosed) {
+
+    if (!_statusController
+        .isClosed) {
       _statusController.add(value);
     }
   }
