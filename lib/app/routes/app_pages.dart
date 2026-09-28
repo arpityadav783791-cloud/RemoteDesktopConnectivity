@@ -4,6 +4,7 @@ import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/connection/presentation/controllers/connection_controller.dart';
 import '../../features/connection/presentation/pages/connection_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/session/presentation/pages/remote_desktop_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -19,5 +20,6 @@ class AppPages {
       binding: BindingsBuilder(() => Get.lazyPut<ConnectionController>(() => ConnectionController())),
     ),
     GetPage(name: AppRoutes.settings, page: () => const SettingsPage()),
+    GetPage(name: AppRoutes.session, page: () => const RemoteDesktopPage()),
   ];
 }

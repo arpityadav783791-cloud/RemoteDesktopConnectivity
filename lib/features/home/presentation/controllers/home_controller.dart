@@ -155,7 +155,18 @@ class HomeController extends GetxController {
         'Connection Failed',
         rdpService.lastError ?? 'Unable to connect.',
       );
+      return;
     }
+
+    await Get.toNamed(
+      AppRoutes.session,
+      arguments: connection,
+    );
+
+    statuses[connection.id] = rdpService.isConnected
+        ? RdpStatus.connected
+        : RdpStatus.disconnected;
+    statuses.refresh();
   }
 
   Future<void> disconnect() async {

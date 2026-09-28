@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(rdc_bridge C)
 
+find_package(Threads REQUIRED)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -26,9 +28,10 @@ target_link_libraries(rdc_bridge PRIVATE
     freerdp3
     freerdp-client3
     winpr3
+    Threads::Threads
 )
 
 set_target_properties(rdc_bridge PROPERTIES
     OUTPUT_NAME "rdc_bridge"
-    BUILD_RPATH "${FREERDP_ROOT}/lib"
+    BUILD_RPATH "${FREERDP_ROOT}/lib;$ORIGIN"
 )

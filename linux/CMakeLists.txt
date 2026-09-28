@@ -54,11 +54,16 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 
+# Native FreeRDP bridge. The FreeRDP runtime is built separately by the
+# repository CI workflow and is consumed from native/freerdp/install.
+set(RDP_BRIDGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../native/rdp_bridge")
+add_subdirectory("${RDP_BRIDGE_DIR}" native_rdp_bridge)
+
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
 # Run the Flutter tool portions of the build. This must not be removed.
-add_dependencies(${BINARY_NAME} flutter_assemble)
+add_dependencies(${BINARY_NAME} flutter_assemble rdc_bridge)
 
 # Only the install-generated bundle's copy of the executable will launch
 # correctly, since the resources must in the right relative locations. To avoid
@@ -105,6 +110,19 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+# Bundle the RDP bridge and FreeRDP runtime libraries beside the Flutter
+# application. The bridge uses $ORIGIN so the bundle is relocatable.
+install(TARGETS rdc_bridge
+  LIBRARY DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
+set(FREERDP_RUNTIME_LIB_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../native/freerdp/install/lib")
+install(DIRECTORY "${FREERDP_RUNTIME_LIB_DIR}/"
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime
+  FILES_MATCHING PATTERN "*.so*")
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")

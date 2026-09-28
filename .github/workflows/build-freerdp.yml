@@ -87,6 +87,17 @@ jobs:
         run: |
           cmake --install native/freerdp/build
 
+      - name: Build native RDP bridge
+        run: |
+          cmake -S native/rdp_bridge             -B native/rdp_bridge/build             -G Ninja             -DCMAKE_BUILD_TYPE=Release
+          cmake --build native/rdp_bridge/build --parallel 4
+
+      - name: Upload RDP bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdc-bridge-linux-x64
+          path: native/rdp_bridge/build/librdc_bridge.so
+
       - name: Upload FreeRDP artifacts
         uses: actions/upload-artifact@v4
         with:
